@@ -1,0 +1,10 @@
+{
+  "indices": ["SPY", "QQQ", "IWM"],
+  "tickers": ["NVDA", "AAPL", "MSFT", "TSLA", "AMD"],
+  "alert_rules": {
+    "price_move_pct": 3,
+    "gap_pct": 2,
+    "volume_multiple": 2.5,
+    "levels": {}
+  }
+}

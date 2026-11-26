@@ -1,0 +1,64 @@
+name: Deliver
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'digests/**'
+      - 'alerts/**'
+      - 'scripts/**'
+      - 'site/**'
+      - 'package*.json'
+      - '.github/workflows/deliver.yml'
+  workflow_dispatch:
+
+# One deploy at a time. Queue, never cancel, so no push goes unannounced.
+concurrency:
+  group: deliver
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=${{ vars.CF_PAGES_PROJECT || 'stockdesk' }} --branch=main --commit-dirty=true
+
+      - name: Find new articles
+        id: new
+        run: |
+          files="$(scripts/new-files.sh '${{ github.event.before }}' '${{ github.sha }}')"
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"; echo "$files" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "New files:"; echo "$files"
+
+      - name: Push to ntfy
+        if: steps.new.outputs.files != ''
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+          NTFY_SERVER: ${{ vars.NTFY_SERVER }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          # Deploy finished above. Links resolve.
+          echo "${{ steps.new.outputs.files }}" | xargs -r node scripts/notify.mjs
