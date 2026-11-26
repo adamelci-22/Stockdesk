@@ -5,10 +5,15 @@ Run: weekdays 08:00 America/New_York. Repo: adamelci-22/Stockdesk. Branch: main.
 ## Goal
 Write one pre-market digest. Commit it. Stop.
 
+## Data access (verified 2026-11-26)
+- Massive `/v2/aggs/ticker/{T}/prev` and `/v2/aggs/ticker/{T}/range/...` work on this plan.
+- Massive snapshot endpoints return NOT_ENTITLED. Do not use them.
+- Live quotes and pre-market: use Robinhood `get_equity_quotes`. State in the file when a number is not from Massive.
+
 ## Steps
 1. Read `config/watchlist.json`. Read the last 3 files in `digests/` for context. Do not repeat their content.
 2. If today is a US market holiday, write a short closed-market digest. Name the next open session. Skip step 3.
-3. Pull data. Use Massive first, Robinhood read-only tools second.
+3. Pull data. Use Massive aggregates for history. Use Robinhood read-only tools for live quotes.
    - Index futures or SPY, QQQ, IWM: pre-market change.
    - Each watchlist ticker: pre-market price, change %, volume vs average, gap %.
    - Earnings today for watchlist tickers (`get_earnings_calendar`).

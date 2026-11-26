@@ -5,11 +5,16 @@ Run: weekdays hourly at :35, 09:35 to 15:35 America/New_York. Repo: adamelci-22/
 ## Goal
 Check the watchlist against the alert rules. Write one file per new trigger. Write nothing if no trigger fires. Most runs write nothing.
 
+## Data access (verified 2026-11-26)
+- Massive `/v2/aggs/ticker/{T}/prev` and `/v2/aggs/ticker/{T}/range/...` work on this plan.
+- Massive snapshot endpoints return NOT_ENTITLED. Do not use them.
+- Live quotes and pre-market: use Robinhood `get_equity_quotes`. State in the file when a number is not from Massive.
+
 ## Steps
 1. Read `config/watchlist.json` (tickers, `alert_rules`).
 2. Check the market is open now (ET). If closed or holiday: exit, write nothing.
 3. List `alerts/` files dated today. This is the dedupe set.
-4. For each ticker in `indices` and `tickers`, pull quote and today's bars from Massive (Robinhood read-only as fallback). Evaluate:
+4. For each ticker in `indices` and `tickers`, pull the live quote from Robinhood and history from Massive aggregates. Evaluate:
    - Move: abs(change from prior close) >= `price_move_pct`.
    - Gap: abs(open vs prior close) >= `gap_pct`.
    - Volume: volume pace >= `volume_multiple` times the 20-day average for this time of day.
